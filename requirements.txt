@@ -1,0 +1,7 @@
+streamlit
+pillow
+numpy
+plotly
+opencv-python 
+pyusb  
+ffmpeg-python
