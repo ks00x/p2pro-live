@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image, ImageFilter, ImageDraw, ImageFont, ImageColor
+from PIL import Image, ImageDraw, ImageFont
 
 def find_tmax(temp):
     m = np.argmax(temp)

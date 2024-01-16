@@ -18,7 +18,7 @@ class p2pro:
 
     def __init__(self,cam_id) -> None:
         'module to read out the Infiray P2Pro camera'
-        self.cap = cv2.VideoCapture(cam_id) 
+        self.cap = cv2.VideoCapture(cam_id)         
         self.cap.set(cv2.CAP_PROP_CONVERT_RGB, 0) # do not create rgb data!
 
     def raw(self):
@@ -27,7 +27,7 @@ class p2pro:
         frame = np.reshape(frame[0],(2,192,256,2))
         raw = frame[1,:,:,:].astype(np.intc) # select only the lower image part
         raw = (raw[:,:,1] << 8) + raw[:,:,0] # assemble the 16bit word
-        return np.rot90(raw,3)
+        return raw
     
     def video(self):
         'returns the normal 8bit video stream from the upper half'
