@@ -15,4 +15,4 @@ pip install opencv-python pyusb pyaudio  ffmpeg-python
 run with:
 `streamlit run p2prolive_app.py`
 
-![](/media/screenshot.jpg)
+![](/media/screenshot.png)
