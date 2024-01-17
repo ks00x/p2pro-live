@@ -17,11 +17,13 @@ def c_to_f(x):
 
 
 def find_tmax(temp):
-    m = np.argmax(temp)
+    'finds the max of the 2D <temp> array and returns a tuple ((x,y),value) of coordinates and value at position'
+    m = np.argmax(temp) 
     m = np.unravel_index(m, np.array(temp).shape)
     return (m[1],m[0]) , temp[m]
 
 def find_tmin(temp):
+    'finds the min of the 2D <temp> array and returns a tuple ((x,y),value) of coordinates and value at position'
     m = np.argmin(temp)
     m = np.unravel_index(m, np.array(temp).shape)
     return (m[1],m[0]) , temp[m]
@@ -33,7 +35,9 @@ def rotate(temp,rot):
         return temp
 
 def draw_annotation(image,pos,text,color='red',fonttype='arial.ttf',fontsize=15,dotsize=4):
-        
+        '''draws a circle at the <pos> location and the annotation <text> next to it.
+        Checks for image borders and adjusts the the text position so the text remains visible
+        '''
         draw = ImageDraw.Draw(image)
         s = dotsize/2
         x1 = abs(pos[0]-s)

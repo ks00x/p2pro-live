@@ -82,7 +82,7 @@ def init():
     try:
         p2.raw()
     except Exception:
-        st.error('this seems to be no P2Pro cam ☹')
+        st.error(f'this seems to be no P2Pro cam ☹. Check the camera id string, currently: {session.id}')
     return p2
 
 p2 = init()
@@ -105,8 +105,8 @@ while True:    # main aquisition loop
     if session.annotations :  
         idxmax,ma = find_tmax(temp)
         idxmin,mi = find_tmin(temp)
-        idc = (temp.shape[1]//2,temp.shape[0]//2)
-        mc = temp[idc]
+    idc = (temp.shape[1]//2,temp.shape[0]//2)
+    mc = temp[idc]
 
     stat = (temp.min(),temp.max(),temp.mean(),mc)  
     if time.time() - th0 > 1/session.tsr : 

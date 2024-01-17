@@ -16,7 +16,7 @@ with st.sidebar:
     if session.units == 'Fahrenheit' : session.fahrenheit = True
     st.selectbox('color map',colorscales,key='colorscale',index=19) 
     rotation = st.selectbox('rotate image',(0,90,180,270))        
-    height = st.number_input('image height',value=600,step=100)
+    height = st.number_input('image height',value=1000,step=100)
     st.checkbox('autoscale',value=True,key='autoscale')
     st.number_input('min temp',value=0,key='tmin')
     st.number_input('max temp',value=60,key='tmax')
