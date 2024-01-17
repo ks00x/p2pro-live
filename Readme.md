@@ -21,7 +21,13 @@ pip install opencv-python pyusb pyaudio  ffmpeg-python pillow streamlit
 - save image to csv
 - (still) image viewer with zoom etc
 
-run with:
+run with (activate the p2pro env first):
 `streamlit run p2prolive_app.py`
+
+You may create a .bat file to activate the env and click start the web app (change the folders to match your installation):
+```bat
+activate p2pro & streamlit run d:\users\klaus\develop\python\misc\infiray\p2pro-live\p2prolive_app.py 
+```
+
 
 ![](/media/screenshot.png)
