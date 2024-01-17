@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import sys
 '''
 with info from , check out:
 https://www.eevblog.com/forum/thermal-imaging/infiray-and-their-p2-pro-discussion/200/
@@ -18,6 +18,7 @@ class p2pro:
 
     def __init__(self,cam_id) -> None:
         'module to read out the Infiray P2Pro camera'
+        if sys.platform == 'win32': cam_id = int(cam_id)
         self.cap = cv2.VideoCapture(cam_id)         
         self.cap.set(cv2.CAP_PROP_CONVERT_RGB, 0) # do not create rgb data!
 
@@ -75,5 +76,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
-    p2pro()
+    main()    

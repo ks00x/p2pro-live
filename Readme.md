@@ -9,8 +9,17 @@ Conda environment settings for Windows
 ```
 conda create -n p2pro python
 activate p2pro
-pip install opencv-python pyusb pyaudio  ffmpeg-python
+pip install opencv-python pyusb pyaudio  ffmpeg-python pillow streamlit
 ```
+
+## features
+- runs on windows without special drivers
+- auto and manual scaling of the temperature to color mapping
+- in image live display of max,min and center temperature
+- history chart function for min,max,avg,center temperature 
+- save history to csv
+- save image to csv
+- (still) image viewer with zoom etc
 
 run with:
 `streamlit run p2prolive_app.py`

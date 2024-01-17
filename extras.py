@@ -1,5 +1,20 @@
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+import io
+
+def preserve_sessionstate(session):
+      'trick to preserve session state of the main page , see: https://discuss.streamlit.io/t/preserving-state-across-sidebar-pages/107/23      '
+      for k in session.keys():
+            session[k] = session[k]
+
+def np_to_csv_stream(im,fmt='%1.2f')->str:        
+        bio = io.BytesIO()
+        np.savetxt(bio,im,fmt=fmt,delimiter=' ')
+        return bio.getvalue().decode('latin1')     
+
+def c_to_f(x):
+    return x * 1.8 + 32  
+
 
 def find_tmax(temp):
     m = np.argmax(temp)
@@ -10,6 +25,12 @@ def find_tmin(temp):
     m = np.argmin(temp)
     m = np.unravel_index(m, np.array(temp).shape)
     return (m[1],m[0]) , temp[m]
+
+def rotate(temp,rot):        
+        if rot == 90 : return np.rot90(temp,1)
+        if rot == 180 : return np.rot90(temp,2)
+        if rot == 270 : return np.rot90(temp,3)
+        return temp
 
 def draw_annotation(image,pos,text,color='red',fonttype='arial.ttf',fontsize=15,dotsize=4):
         

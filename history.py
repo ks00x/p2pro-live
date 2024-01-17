@@ -1,6 +1,15 @@
 import numpy as np
 import time
+import io
 
+def hreduce(data,pts):    
+    xn = np.linspace(data[0].min(),data[0].max(),pts)
+    n = data.shape[0]
+    out = np.zeros((n,pts))
+    out[0] = xn
+    for k in range(1,n):        
+        out[k] = np.interp(xn,data[0],data[k])
+    return out
 
 
 class history:
@@ -40,10 +49,11 @@ class history:
         kend = np.searchsorted(t,tmax - offset_s - range_s) - 1
         if kend < 0 : kend = 0
         #print(koff,kend,self.items)        
-        if kend-koff < max_samples :
-            return self.mem[:,koff:kend:-1]
-        else : # to be implemented...
-            return self.mem[:,koff:kend:-1]
+        if koff-kend < max_samples :
+            #return self.mem[:,koff:kend:-1]
+            return self.mem[:,kend:koff]
+        else : # reduce samples for plotly
+            return hreduce(self.mem[:,kend:koff],max_samples)
                 
     def add(self,row:tuple):
         'add a full row : row is a tuple with columns elements'
@@ -54,23 +64,23 @@ class history:
         else:            
             self.mem = np.roll(self.mem,-1,axis=None,)            
             self.mem[:,self.maxitems-1] = (t,)+row
-        
 
+    def csv(self,fmt='%1.2f')->str:        
+        bio = io.BytesIO()
+        np.savetxt(bio, self.mem[:,:self.items].T,fmt=fmt,delimiter=' ')
+        return bio.getvalue().decode('latin1')        
+        
 
 def main():
     import matplotlib.pyplot as plt
-    fig,ax = plt.subplots()
 
+    fig,ax = plt.subplots()
     h = history(maxitems=7)
     for k in range(9):
         h.add((10+k,20+k,30+k))
-        time.sleep(0.0001)
-
-    
-
+        time.sleep(0.0001)    
     ax.plot(h.head(5)[0],h.head(5)[1:].T)
     plt.show()
-
 
 if __name__ == '__main__':
     main()
