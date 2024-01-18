@@ -23,6 +23,8 @@ pip install opencv-python pyusb pyaudio  ffmpeg-python pillow streamlit
 
 run with (activate the p2pro env first):
 `streamlit run p2prolive_app.py`
+You can specifiy the device id on the commandline:
+`streamlit run p2prolive_app.py -- 0`
 
 You may create a .bat file to activate the env and click start the web app (change the folders to match your installation):
 ```bat

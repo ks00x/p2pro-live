@@ -9,6 +9,7 @@ from history import history
 from p2pro import p2pro
 from extras import find_tmin,find_tmax,draw_annotation,rotate,preserve_sessionstate
 import help
+import sys
 
 st.set_page_config('P2Pro LIVE',initial_sidebar_state='expanded',page_icon='🔺')
 session = st.session_state
@@ -27,7 +28,7 @@ if 'history' not in session : # init and set default values for sidebar controls
     session.autoscale = True
     session.tmin = 20.
     session.tmax = 60
-    session.timeline = False
+    session.timeline = True
     session.show_min = True
     session.show_max = True
     session.show_mean = True
@@ -38,6 +39,10 @@ if 'history' not in session : # init and set default values for sidebar controls
     session.cheight = 300
     session.wait_delay = 50
     session.t_units = 's'
+
+    if len(sys.argv) > 1 : # cmdline overwrite for the device id, use '--' in front of the argument!
+        session.id = sys.argv[1]
+
 else :
     preserve_sessionstate(session)
 
@@ -67,7 +72,7 @@ with st.sidebar:
         st.number_input('time range in s',help=help.history_timerange,key='trange')
         st.slider('time offset in s',min_value=0.,max_value=3600.,key='toff')      
         st.radio('time units',('s','m'),horizontal=True,key='t_units')        
-        st.number_input('history sample rate HZ',value=2.,max_value=10.,min_value=0.1,key='tsr')      
+        st.number_input('history sample rate Hz',value=2.,max_value=10.,min_value=0.1,key='tsr')      
         if st.button('clear history') :
             session.history.clear()            
     with st.expander('more settings'):
@@ -106,7 +111,7 @@ while True:    # main aquisition loop
         idxmax,ma = find_tmax(temp)
         idxmin,mi = find_tmin(temp)
     idc = (temp.shape[1]//2,temp.shape[0]//2)
-    mc = temp[idc]
+    mc = temp[idc[::-1]] # why is that reverse needed???
 
     stat = (temp.min(),temp.max(),temp.mean(),mc)  
     if time.time() - th0 > 1/session.tsr : 
