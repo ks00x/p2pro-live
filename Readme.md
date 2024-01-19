@@ -10,6 +10,7 @@ Conda environment settings for Windows
 conda create -n p2pro python
 activate p2pro
 pip install opencv-python pyusb pyaudio  ffmpeg-python pillow streamlit
+# works well with streamlit 1.3
 ```
 
 ## features
@@ -26,7 +27,7 @@ run with (activate the p2pro env first):
 You can specifiy the device id on the commandline:
 `streamlit run p2prolive_app.py -- 0`
 
-You may create a .bat file to activate the env and click start the web app (change the folders to match your installation):
+You may create a .bat file to activate the env and click start the web app (change the folders to match your installation, note the <&> operator):
 ```bat
 activate p2pro & streamlit run d:\users\klaus\develop\python\misc\infiray\p2pro-live\p2prolive_app.py 
 ```

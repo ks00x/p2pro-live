@@ -7,14 +7,14 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 from history import history
 from p2pro import p2pro
-from extras import find_tmin,find_tmax,draw_annotation,rotate,preserve_sessionstate
+from extras import find_tmin,find_tmax,draw_annotation,rotate,preserve_sessionstate,colorbarfig
 import help
 import sys
 
-st.set_page_config('P2Pro LIVE',initial_sidebar_state='expanded',page_icon='🔺')
+st.set_page_config('P2Pro LIVE',initial_sidebar_state='expanded',page_icon='🔺',layout='wide')
 session = st.session_state
 
-cmaplist = ['viridis', 'plasma', 'inferno', 'magma', 'cividis','hot','afmhot','gray','tab20c']
+cmaplist = ['viridis', 'plasma', 'jet','inferno', 'magma', 'cividis','hot','afmhot','gray','tab20c']
 HISTORY_LEN =  10000 # length of the history buffer in samples
 if 'history' not in session : # init and set default values for sidebar controls
     session.history = history(maxitems=HISTORY_LEN,columns=4)
@@ -23,7 +23,7 @@ if 'history' not in session : # init and set default values for sidebar controls
     session.brightness = 0.
     session.contrast = 1.
     session.sharp = 0
-    session.rot = 0
+    session.rotate = 0
     session.annotations = True
     session.autoscale = True
     session.tmin = 20.
@@ -35,10 +35,11 @@ if 'history' not in session : # init and set default values for sidebar controls
     session.show_center = True
     session.trange = 500.
     session.toff = 0.
-    session.width = 600
+    session.width = 0
     session.cheight = 300
     session.wait_delay = 50
     session.t_units = 's'
+    session.showscale = True
 
     if len(sys.argv) > 1 : # cmdline overwrite for the device id, use '--' in front of the argument!
         session.id = sys.argv[1]
@@ -50,17 +51,19 @@ def restart():
     init.clear()    
 
 with st.sidebar:
+    with st.expander('color scaling',expanded=True):
+        st.checkbox('autoscale',key='autoscale')    
+        st.number_input('max T',key='tmax')
+        st.number_input('min T',key='tmin')    
+        st.selectbox('colormap',cmaplist,key='colormap')
     with st.expander('image controls',expanded=True):
         st.slider('brightness',min_value=0.,max_value=1.,key='brightness')
         st.slider('contrast',min_value=0.1,max_value=1.,key='contrast')
         st.slider('sharpness',min_value=-6,max_value=1,key='sharp')
-        st.selectbox('rotate image',(0,90,180,270),index=0,key='rot')
-        st.selectbox('colormap',cmaplist,key='colormap')
+        st.selectbox('rotate image',(0,90,180,270),key='rotate')
         st.checkbox('show min max temp cursors',key='annotations')
+        st.checkbox('show color scale',key='showscale')
         st.checkbox('show normal video stream',key='showvideo')
-    st.checkbox('autoscale',key='autoscale')    
-    st.number_input('max T',key='tmax')
-    st.number_input('min T',key='tmin')    
     with st.expander('history settings',expanded=session.timeline):
         st.checkbox('show history timeline',key='timeline')
         c1,c2,c3 = st.columns(3)
@@ -72,12 +75,12 @@ with st.sidebar:
         st.number_input('time range in s',help=help.history_timerange,key='trange')
         st.slider('time offset in s',min_value=0.,max_value=3600.,key='toff')      
         st.radio('time units',('s','m'),horizontal=True,key='t_units')        
-        st.number_input('history sample rate Hz',value=2.,max_value=10.,min_value=0.1,key='tsr')      
+        st.number_input('history sample rate Hz',max_value=10.,min_value=0.1,key='tsr')      
         if st.button('clear history') :
             session.history.clear()            
     with st.expander('more settings'):
         st.text_input('camera id',on_change=restart,key='id',help=help.cam_id)
-        st.number_input('image width',step=50,key='width')
+        st.number_input('image width',step=50,key='width',help=help.image_width)
         st.number_input('chart height',step=50,key='cheight')
         st.number_input('wait delay ms',min_value=0,step=10,help=help.history_wait_delay,key='wait_delay')
 
@@ -95,8 +98,14 @@ p2 = init()
 ##### define placeholders for the loop output:
 info = st.empty() 
 chart = st.empty()
-img = st.empty()
+if session.showscale :
+    c1,c2 = st.columns((0.9,0.1))
+    img = c1.empty()
+    img_cbar = c2.empty()
+else: 
+    img = st.empty()
 img2 = st.empty()
+
 
 cm_hot = plt.get_cmap(session.colormap)   
 tc0 = th0 =  time.time()            
@@ -104,7 +113,7 @@ tc0 = th0 =  time.time()
 while True:    # main aquisition loop
        
     temp = p2.temperature()  
-    temp = rotate(temp,session.rot)
+    temp = rotate(temp,session.rotate)
     session.last_image = temp
     
     if session.annotations :  
@@ -131,7 +140,7 @@ while True:    # main aquisition loop
         if session.show_max : fig.add_scatter(x=t, y=data[2],mode='lines',name='max',line=dict(color="red"))
         if session.show_mean : fig.add_scatter(x=t, y=data[3],mode='lines',name='mean',line=dict(color="green"))        
         if session.show_center : fig.add_scatter(x=t, y=data[4],mode='lines',name='center',line=dict(color="orange"))        
-        chart.plotly_chart(fig)
+        chart.plotly_chart(fig,use_container_width=True)
         tc0 = time.time()
 
     c1,c2,c3,c4 = info.columns(4)
@@ -149,11 +158,17 @@ while True:    # main aquisition loop
     
     if session.autoscale :
         temp = (temp-stat[0])/(stat[1]-stat[0]) * session.contrast + session.brightness
+        if session.showscale :
+            f = colorbarfig(stat[0],stat[1],session.colormap)
+            img_cbar.pyplot(f)
     else :        
         temp = (temp-session.tmin)/(session.tmax-session.tmin) * session.contrast + session.brightness
+        if session.showscale :
+            f = colorbarfig(session.tmin,session.tmax,session.colormap)
+            img_cbar.pyplot(f)
     
     # trick to use the matplotlib colormaps with PIL
-    temp = cm_hot(temp)
+    temp = cm_hot(temp)    
     temp = np.uint8(temp * 255)
     im = Image.fromarray(temp)    
                
@@ -161,13 +176,19 @@ while True:    # main aquisition loop
         draw_annotation(im,idxmax,f'{ma:1.2f}C')
         draw_annotation(im,idxmin,f'{mi:1.2f}C',color='lightblue')
         draw_annotation(im,idc,f'{mc:1.2f}C',color='lightblue')
-           
-    img.image(im,width=session.width,clamp=True,) # show the image
+
+    if session.width  > 0 : 
+        img.image(im,width=session.width,clamp=True,) 
+    else :
+        img.image(im,clamp=True,use_column_width=True)
                       
     if session.showvideo :
         v = p2.video()
-        v = rotate(v,session.rot)
-        img2.image(v,width=session.width,clamp=True,)
+        v = rotate(v,session.rotate)        
+        if session.width  > 0 : 
+            img2.image(v,width=session.width,clamp=True,) 
+        else :
+            img2.image(v,clamp=True,use_column_width=True)
 
     time.sleep(session.wait_delay/1000.)
             

@@ -66,4 +66,16 @@ def convert_colormap(temp,colormapper):
     im = Image.fromarray(temp)
     return im
     
-    
+
+def colorbarfig(min,max,cmapname):
+    # https://matplotlib.org/stable/users/explain/colors/colorbar_only.html
+    from matplotlib import cm,colors,figure    
+    # solves memory problems calling it this way!
+    # see https://discourse.matplotlib.org/t/pyplot-interface-and-memory-management/22299
+    fig = figure.Figure(figsize=(1, 8), layout='constrained') 
+    ax = fig.subplots(1, 1)        
+    norm = colors.Normalize(vmin=min, vmax=max)
+    fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmapname),
+             cax=ax, orientation='vertical') # , label='temperature'
+    ax.tick_params(labelsize=16)
+    return fig
