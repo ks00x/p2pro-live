@@ -68,6 +68,7 @@ def convert_colormap(temp,colormapper):
     
 
 def colorbarfig(min,max,cmapname):
+    'draw a colorbar with scale only image'
     # https://matplotlib.org/stable/users/explain/colors/colorbar_only.html
     from matplotlib import cm,colors,figure    
     # solves memory problems calling it this way!

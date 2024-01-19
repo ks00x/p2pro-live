@@ -9,7 +9,7 @@ Conda environment settings for Windows
 ```
 conda create -n p2pro python
 activate p2pro
-pip install opencv-python pyusb pyaudio  ffmpeg-python pillow streamlit
+pip install opencv-python pyusb pyaudio pillow plotly matplotlib streamlit
 # works well with streamlit 1.3
 ```
 

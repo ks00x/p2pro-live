@@ -14,7 +14,9 @@ import sys
 st.set_page_config('P2Pro LIVE',initial_sidebar_state='expanded',page_icon='🔺',layout='wide')
 session = st.session_state
 
-cmaplist = ['viridis', 'plasma', 'jet','inferno', 'magma', 'cividis','hot','afmhot','gray','tab20c']
+# https://matplotlib.org/stable/gallery/color/colormap_reference.html
+cmaplist = ['jet','gray','bone','rainbow','terrain','nipy_spectral','gist_ncar','brg','hot', 'cividis','plasma', 'viridis','inferno', 'magma','afmhot','tab20c']
+
 HISTORY_LEN =  10000 # length of the history buffer in samples
 if 'history' not in session : # init and set default values for sidebar controls
     session.history = history(maxitems=HISTORY_LEN,columns=4)
