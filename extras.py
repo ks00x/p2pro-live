@@ -1,6 +1,7 @@
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import io
+import time
 
 def preserve_sessionstate(session):
       'trick to preserve session state of the main page , see: https://discuss.streamlit.io/t/preserving-state-across-sidebar-pages/107/23      '
@@ -35,7 +36,7 @@ def rotate(temp,rot):
         return temp
 
 def draw_annotation(image,pos,text,color='red',fonttype='arial.ttf',fontsize=15,dotsize=4):
-        '''draws a circle at the <pos> location and the annotation <text> next to it.
+        '''PIL image - draws a circle at the <pos> location and the annotation <text> next to it.
         Checks for image borders and adjusts the the text position so the text remains visible
         '''
         draw = ImageDraw.Draw(image)
@@ -57,6 +58,8 @@ def draw_annotation(image,pos,text,color='red',fonttype='arial.ttf',fontsize=15,
         else : y = pos[1]
 
         draw.text((x,y),text,fill=color,font=font )
+        del draw # potential memory leak here!
+
 
 
 
@@ -80,3 +83,18 @@ def colorbarfig(min,max,cmapname):
              cax=ax, orientation='vertical') # , label='temperature'
     ax.tick_params(labelsize=16)
     return fig
+
+
+
+class mytimer:
+    def __init__(self) -> None:
+        self.evts = {}
+    def add(self,name:str,interval_s:float):
+         self.evts[name] = [time.time(),interval_s]             
+    def check(self,name):
+        t = time.time()  
+        v = self.evts[name]
+        if t - v[0] >= v[1] :
+                v[0] = t
+                return True        
+        return False

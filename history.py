@@ -42,6 +42,7 @@ class history:
         return self.mem[:,self.items-1:self.items-num:-1]
         
     def timerange(self,range_s,offset_s=0,max_samples=500):
+        if self.items == 0 : return None
         t = self.mem[0][:self.items]
         tmax = t[self.items-1]
         koff = np.searchsorted(t,tmax-offset_s) - 1
