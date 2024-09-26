@@ -2,6 +2,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import io
 import time
+import platform
 
 def preserve_sessionstate(session):
       'trick to preserve session state of the main page , see: https://discuss.streamlit.io/t/preserving-state-across-sidebar-pages/107/23      '
@@ -35,10 +36,17 @@ def rotate(temp,rot):
         if rot == 270 : return np.rot90(temp,3)
         return temp
 
-def draw_annotation(image,pos,text,color='red',fonttype='arial.ttf',fontsize=15,dotsize=4):
+def draw_annotation(image,pos,text,color='red',fontsize=15,dotsize=4):
         '''PIL image - draws a circle at the <pos> location and the annotation <text> next to it.
         Checks for image borders and adjusts the the text position so the text remains visible
+
         '''
+        # check that the font is actually available!
+        if platform.system() == 'Windows':
+            fonttype='arial.ttf'
+        else :
+             fonttype='DejaVuSans.ttf'
+
         draw = ImageDraw.Draw(image)
         s = dotsize/2
         x1 = abs(pos[0]-s)
@@ -59,8 +67,6 @@ def draw_annotation(image,pos,text,color='red',fonttype='arial.ttf',fontsize=15,
 
         draw.text((x,y),text,fill=color,font=font )
         del draw # potential memory leak here!
-
-
 
 
 def convert_colormap(temp,colormapper):
@@ -85,13 +91,15 @@ def colorbarfig(min,max,cmapname):
     return fig
 
 
-
 class mytimer:
+    '''A simple timer class that checks the time passed against a 
+    a predefined interval for each item
+    '''
     def __init__(self) -> None:
         self.evts = {}
     def add(self,name:str,interval_s:float):
          self.evts[name] = [time.time(),interval_s]             
-    def check(self,name):
+    def check(self,name)->bool:
         t = time.time()  
         v = self.evts[name]
         if t - v[0] >= v[1] :

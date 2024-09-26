@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
-import sys
+import platform
+
 '''
 with info from , check out:
 https://www.eevblog.com/forum/thermal-imaging/infiray-and-their-p2-pro-discussion/200/
@@ -18,22 +19,28 @@ class p2pro:
 
     def __init__(self,cam_id) -> None:
         'module to read out the Infiray P2Pro camera'
-        if sys.platform == 'win32': cam_id = int(cam_id)
-        self.cap = cv2.VideoCapture(cam_id)         
+        if platform.system() == 'Windows': cam_id = int(cam_id)
+        self.cap = cv2.VideoCapture(cam_id) 
         self.cap.set(cv2.CAP_PROP_CONVERT_RGB, 0) # do not create rgb data!
+
+    def get_frame(self):
+        ret, frame = self.cap.read()         
+        if platform.system() == 'Windows':
+            frame = np.reshape(frame[0],(2,192,256,2))
+        else : # Linux, MacOS
+            frame = np.reshape(frame,(2,192,256,2))
+        return frame
 
     def raw(self):
         'returns the raw 16bit int image'
-        ret, frame = self.cap.read() 
-        frame = np.reshape(frame[0],(2,192,256,2))
+        frame = self.get_frame()
         raw = frame[1,:,:,:].astype(np.intc) # select only the lower image part
         raw = (raw[:,:,1] << 8) + raw[:,:,0] # assemble the 16bit word
         return raw
     
     def video(self):
         'returns the normal 8bit video stream from the upper half'
-        ret, frame = self.cap.read() 
-        frame = np.reshape(frame[0],(2,192,256,2))
+        frame = self.get_frame()
         return frame[0,:,:,0] # select only the upper image part, lower byte                
     
     def temperature(self):
@@ -49,6 +56,7 @@ def main():
     import time
 
     id = 0 # the p2pro camera may have a higher id (1,2..)
+    id = '/dev/video0'
     p2 = p2pro(id)
     i = 0
         
@@ -76,4 +84,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()    
+    main()
+    p2pro()

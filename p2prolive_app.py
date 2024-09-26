@@ -10,6 +10,7 @@ from p2pro import p2pro
 from extras import find_tmin,find_tmax,draw_annotation,rotate,preserve_sessionstate,colorbarfig,mytimer
 import help
 import sys
+import platform
 
 st.set_page_config('P2Pro LIVE',initial_sidebar_state='expanded',page_icon='🔺',layout='wide')
 session = st.session_state
@@ -21,12 +22,15 @@ HISTORY_LEN =  10000 # length of the history buffer in samples
 if 'history' not in session : # init and set default values for sidebar controls
     session.history = history(maxitems=HISTORY_LEN,columns=4)
     session.tsr = 2.
-    session.id = '1'
+    if platform.system() == 'Windows':
+        session.id = '1'
+    else:
+        session.id = '/dev/video0'
     session.brightness = 0.
     session.contrast = 1.
     session.sharp = 0
     session.rotate = 0
-    session.annotations = True
+    session.annotations = False
     session.autoscale = True
     session.tmin = 20.
     session.tmax = 60
@@ -92,7 +96,7 @@ def init():
     try:
         p2.raw()
     except Exception:
-        st.error(f'this seems to be no P2Pro cam ☹. Check the camera id string, currently: {session.id}')
+        st.error(f'this seems to be no P2Pro cam ☹. Check connections and the camera id string, currently: {session.id}')
     return p2
 
 p2 = init()
@@ -109,12 +113,12 @@ else:
 img2 = st.empty()
 
 cm_hot = plt.get_cmap(session.colormap)     
+
 tm = mytimer()       
 tm.add('chart',1/session.tsr)
 tm.add('history',1/session.tsr)
 tm.add('colorbar',0.5)
 tm.add('restart',500)
-
     
 while True:    # main aquisition loop
         
@@ -147,8 +151,7 @@ while True:    # main aquisition loop
             if session.show_max : fig.add_scatter(x=t, y=data[2],mode='lines',name='max',line=dict(color="red"))
             if session.show_mean : fig.add_scatter(x=t, y=data[3],mode='lines',name='mean',line=dict(color="green"))        
             if session.show_center : fig.add_scatter(x=t, y=data[4],mode='lines',name='center',line=dict(color="orange"))        
-            chart.plotly_chart(fig,use_container_width=True)
-            
+            chart.plotly_chart(fig,use_container_width=True)            
     
     c1,c2,c3,c4 = info.columns(4) 
     c1.metric('min',value=f"{stat[0]:1.4}C")
