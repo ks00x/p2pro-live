@@ -130,15 +130,15 @@ class p2pro:
         except Exception:
             return False
 
-    def get_frame(self):
-        'reads one decoded frame (rows x 256 x 2 bytes). Use the frame_* methods to extract the data from it'
+    def get_frame(self, skip=1, allow_stale=True):
+        '''reads one decoded frame (rows x 256 x 2 bytes). Use the frame_* methods to extract the data from it
+        skip: buffered frames dropped before the returned one (reduces latency of slow readers, use 0 when
+              reading continuously at the camera frame rate)
+        allow_stale: if reading fails, return the last good frame instead of raising RuntimeError'''
         for _ in range(3):
-            # Drop buffered frames to reduce display latency.
-            for _ in range(2):
+            for _ in range(skip):
                 self.cap.grab()
-            ret, frame = self.cap.retrieve()
-            if not ret or frame is None:
-                ret, frame = self.cap.read()
+            ret, frame = self.cap.read()
             if ret and frame is not None:
                 try:
                     decoded = self._decode_stacked_frame(frame)
@@ -148,7 +148,7 @@ class p2pro:
                     pass
             time.sleep(0.01)
 
-        if self._last_frame is not None:
+        if allow_stale and self._last_frame is not None:
             return self._last_frame
 
         raise RuntimeError('Could not read frame from camera stream.')
