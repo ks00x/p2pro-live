@@ -22,6 +22,10 @@ with st.sidebar:
     tmax = st.number_input('max temp',value=60)
 
 
+if 'last_image' not in session:
+    st.warning('No image available yet. Open the live page first so a frame can be captured.')
+    st.stop()
+
 im = session.last_image
 if rotation == 90 :
     im = np.rot90(im)  
@@ -42,10 +46,10 @@ st.download_button('download csv file',data=csv,file_name=f'{datetime.now():%Y-%
 if autoscale :
     fig = px.imshow(im,aspect='equal',color_continuous_scale=colorscale,title=title) 
 else :
-    fig = px.imshow(im,aspect='equal',color_continuous_scale=colorscale,title=title,zmin=session.tmin,zmax=session.tmax)  
+    fig = px.imshow(im,aspect='equal',color_continuous_scale=colorscale,title=title,zmin=tmin,zmax=tmax)
 
 fig.update_layout(height=height)
-st.plotly_chart(fig,use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 st.write(f"min = {im.min():1.2f}, max = {im.max():1.2f}, mean = {im.mean():1.2f}")
     
     

@@ -2,6 +2,7 @@ streamlit
 pillow
 numpy
 plotly
+matplotlib
 opencv-python 
 pyusb  
 ffmpeg-python
