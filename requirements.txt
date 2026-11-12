@@ -1,11 +1,5 @@
-streamlit
-pillow
 numpy
-plotly
-matplotlib
-opencv-python 
-pyusb  
-ffmpeg-python
+opencv-python
 starlette>=1.0
 uvicorn
 websockets>=13

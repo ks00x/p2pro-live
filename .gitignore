@@ -159,9 +159,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# recordings made with the app
-recordings/
-
 # collection areas of the thermal server
 rois.json
 rois.json.tmp
