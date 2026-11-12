@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P2Pro</title>
+<script>
+  // theme before the first paint (no flash): 'dark' | 'light', none = follow the system
+  try { const th = localStorage.getItem('p2pro-theme'); if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th; } catch {}
+</script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1 data-i18n="app.title"></h1>
+  <div id="conn" class="conn off" data-i18n-title="conn.title"><span class="dot"></span><span id="conn-text"></span></div>
+  <div id="fps" class="muted"></div>
+  <div class="prefs">
+    <label><span data-i18n="lang.label"></span>
+      <select id="lang">
+        <option value="pt">Português</option>
+        <option value="en">English</option>
+        <option value="es">Español</option>
+      </select>
+    </label>
+    <label><span data-i18n="theme.label"></span>
+      <select id="theme">
+        <option value="system" data-i18n="theme.system"></option>
+        <option value="dark" data-i18n="theme.dark"></option>
+        <option value="light" data-i18n="theme.light"></option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <div class="toolbar">
+      <div class="tools" role="radiogroup" data-i18n-aria="tools.aria">
+        <button data-tool="select" data-i18n-title="tool.select.title"><span data-i18n="tool.select"></span> <kbd>V</kbd></button>
+        <button data-tool="point" data-i18n-title="tool.point.title"><span data-i18n="tool.point"></span> <kbd>P</kbd></button>
+        <button data-tool="rect" data-i18n-title="tool.rect.title"><span data-i18n="tool.rect"></span> <kbd>R</kbd></button>
+        <button data-tool="circle" data-i18n-title="tool.circle.title"><span data-i18n="tool.circle"></span> <kbd>C</kbd></button>
+      </div>
+      <div class="view-opts">
+        <label><span data-i18n="view.palette"></span>
+          <select id="cmap">
+            <option value="iron" data-i18n="cmap.iron"></option>
+            <option value="inferno">inferno</option>
+            <option value="turbo">turbo</option>
+            <option value="jet">jet</option>
+            <option value="gray" data-i18n="cmap.gray"></option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="auto" checked> <span data-i18n="view.auto"></span></label>
+        <label class="num"><span data-i18n="view.min"></span> <input type="number" id="tmin" value="20" step="1"></label>
+        <label class="num"><span data-i18n="view.max"></span> <input type="number" id="tmax" value="60" step="1"></label>
+        <label class="check"><input type="checkbox" id="show-hot" checked> <span data-i18n="view.hot"></span></label>
+      </div>
+    </div>
+
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <form id="label-form" hidden autocomplete="off">
+        <label for="label-input" data-i18n="form.label"></label>
+        <input id="label-input" maxlength="64" required>
+        <div class="row">
+          <button type="submit" id="label-submit"></button>
+          <button type="button" id="label-cancel" data-i18n="form.cancel"></button>
+        </div>
+        <div id="label-error" class="error"></div>
+      </form>
+      <div id="nocam" hidden><span id="nocam-text"></span></div>
+    </div>
+    <div class="under">
+      <canvas id="scale" width="512" height="14"></canvas>
+      <div class="scale-labels"><span id="scale-lo"></span><span id="scale-hi"></span></div>
+      <div id="hover" class="muted">&nbsp;</div>
+      <div id="notice" class="error" role="status"></div>
+    </div>
+  </main>
+
+  <aside>
+    <section>
+      <h2 data-i18n="g.title"></h2>
+      <dl class="stats">
+        <dt data-i18n="g.hottest"></dt><dd><b id="g-max">–</b> <span id="g-max-pos" class="muted"></span></dd>
+        <dt data-i18n="g.coldest"></dt><dd><span id="g-min">–</span> <span id="g-min-pos" class="muted"></span></dd>
+        <dt data-i18n="g.mean"></dt><dd id="g-mean">–</dd>
+      </dl>
+    </section>
+    <section>
+      <div class="section-head">
+        <h2 data-i18n="rois.title"></h2>
+        <button id="clear-all" class="small danger" data-i18n="rois.clear" data-i18n-title="rois.clear.title"></button>
+      </div>
+      <p id="roi-empty" class="muted" data-i18n="rois.empty"></p>
+      <table id="roi-table" hidden>
+        <thead><tr><th>id</th><th data-i18n="th.max"></th><th data-i18n="th.mean"></th><th data-i18n="th.min"></th><th class="actions"></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted hint" data-i18n="rois.hint"></p>
+      <div id="roi-error" class="error"></div>
+    </section>
+    <section>
+      <h2 data-i18n="stream.title"></h2>
+      <p class="muted" data-i18n-html="stream.desc"></p>
+      <ul class="urls">
+        <li>WebSocket <code id="url-ws"></code></li>
+        <li>SSE <code id="url-sse"></code></li>
+        <li><span data-i18n="stream.latest"></span> <code id="url-latest"></code></li>
+        <li><span data-i18n="stream.rois"></span> <code id="url-rois"></code></li>
+      </ul>
+      <p class="muted" data-i18n-html="stream.rate"></p>
+    </section>
+  </aside>
+</div>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

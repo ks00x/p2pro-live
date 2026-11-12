@@ -1,7 +1,5 @@
-streamlit
-pillow
-numpy
-plotly
-opencv-python 
-pyusb  
-ffmpeg-python
+numpy>=1.24
+opencv-python>=4.8,<5
+starlette>=1.0,<2
+uvicorn>=0.30
+websockets>=13
