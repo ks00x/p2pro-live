@@ -1,3 +1,15 @@
+'''
+Infiray P2Pro camera driver: opens the UVC stream and decodes the raw temperature data.
+
+with info from:
+https://www.eevblog.com/forum/thermal-imaging/infiray-and-their-p2-pro-discussion/200/
+https://github.com/leswright1977/PyThermalCamera/blob/main/src/tc001v4.2.py
+https://github.com/LeoDJ/P2Pro-Viewer (USB id detection)
+
+Each camera frame is 256 x 384 YUY2: the upper half is the camera video image, the lower half
+the raw 16 bit temperature data, T[C] = raw/64 - 273.2.
+'''
+
 import cv2
 import numpy as np
 import platform
@@ -5,20 +17,6 @@ import glob
 import os
 import time
 import re
-
-'''
-with info from , check out:
-https://www.eevblog.com/forum/thermal-imaging/infiray-and-their-p2-pro-discussion/200/
-https://github.com/leswright1977/PyThermalCamera/blob/main/src/tc001v4.2.py
-https://github.com/LeoDJ/P2Pro-Viewer (USB id detection, YUY2 video decoding, USB commands, recorder)
-
-I did create a seperate conda env for this project on Windows:
-conda create -n p2pro python
-activate p2pro
-pip install opencv-python pyusb pyaudio  ffmpeg-python
-
-tested with cv2 4.8.0
-'''
 
 P2PRO_USB_ID = (0x0bda, 0x5830)  # VID, PID
 P2PRO_ROWS = 192   # rows of each image half (video on top, raw temperature data below)
@@ -121,15 +119,6 @@ class p2pro:
             )
         return decoded
 
-    @staticmethod
-    def is_compatible_frame(frame):
-        'quick compatibility check used during camera scan'
-        try:
-            p2pro._decode_stacked_frame(frame)
-            return True
-        except Exception:
-            return False
-
     def get_frame(self, skip=1, allow_stale=True):
         '''reads one decoded frame (rows x 256 x 2 bytes). Use the frame_* methods to extract the data from it
         skip: buffered frames dropped before the returned one (reduces latency of slow readers, use 0 when
@@ -169,31 +158,9 @@ class p2pro:
         'temperature map in Celsius of a frame from get_frame()'
         return p2pro.raw_to_celsius(p2pro.frame_raw(frame))
 
-    @staticmethod
-    def frame_video(frame):
-        'normal 8bit video (luma) of the upper half of a frame from get_frame()'
-        return frame[:P2PRO_ROWS,:,0] # upper image part, lower byte
-
-    @staticmethod
-    def frame_video_rgb(frame):
-        '''RGB video (192 x 256 x 3, uint8) of the upper half of a frame from get_frame().
-        The upper half is YUY2 encoded and uses the camera pseudo color palette (see p2pro_cmd).
-        Falls back to the gray luma image if the frame has no separate video half.'''
-        if frame.shape[0] < 2 * P2PRO_ROWS:
-            return cv2.cvtColor(np.ascontiguousarray(frame[:P2PRO_ROWS,:,0]), cv2.COLOR_GRAY2RGB)
-        return cv2.cvtColor(np.ascontiguousarray(frame[:P2PRO_ROWS]), cv2.COLOR_YUV2RGB_YUY2)
-
     def raw(self):
         'returns the raw 16bit int image'
         return self.frame_raw(self.get_frame())
-
-    def video(self):
-        'returns the normal 8bit video stream from the upper half'
-        return self.frame_video(self.get_frame())
-
-    def video_rgb(self):
-        'returns the RGB video stream (camera pseudo color) from the upper half'
-        return self.frame_video_rgb(self.get_frame())
 
     def temperature(self):
         'returns the image as temperature map in Celsius'
@@ -202,92 +169,3 @@ class p2pro:
     def __del__(self):
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
-
-
-def main():
-    import time
-
-    def configure_opencv_qt_fonts():
-        if platform.system() != 'Linux':
-            return
-        font_dir = '/usr/share/fonts/truetype/dejavu'
-        if os.path.isdir(font_dir):
-            os.environ.setdefault('QT_QPA_FONTDIR', font_dir)
-
-    configure_opencv_qt_fonts()
-
-    def open_capture(cam_id):
-        if platform.system() == 'Windows':
-            return cv2.VideoCapture(int(cam_id))
-        return cv2.VideoCapture(cam_id)
-
-    def scan_video_ports(max_indices=10):
-        'returns list of readable camera ids for current platform'
-        ids = find_p2pro_devices() # Linux: found by USB id, no probing needed
-        if len(ids) > 0:
-            return ids
-        if platform.system() == 'Windows':
-            candidates = [str(i) for i in range(max_indices)]
-        else:
-            candidates = sorted(glob.glob('/dev/video*'))
-
-        for cid in candidates:
-            cap = open_capture(cid)
-            ok, frame = cap.read()
-            cap.release()
-            if ok and frame is not None and p2pro.is_compatible_frame(frame):
-                ids.append(cid)
-        return ids
-
-    def select_camera_port():
-        ids = scan_video_ports()
-        if len(ids) == 0:
-            fallback = '0' if platform.system() == 'Windows' else '/dev/video0'
-            typed = input(f'No readable video ports found. Enter camera id manually [{fallback}]: ').strip()
-            return typed or fallback
-
-        print('Detected video ports:')
-        for i, cid in enumerate(ids):
-            print(f'  [{i}] {cid}')
-        if len(ids) == 1:
-            return ids[0]
-
-        while True:
-            typed = input('Select camera index [0]: ').strip()
-            if typed == '':
-                return ids[0]
-            if typed.isdigit() and int(typed) < len(ids):
-                return ids[int(typed)]
-            print(f'Invalid selection: {typed}. Enter a number between 0 and {len(ids)-1}.')
-
-    cam_id = select_camera_port()
-    print(f'Using camera port: {cam_id}')
-    p2 = p2pro(cam_id)
-    i = 0
-
-    while(True):
-        t0 = time.perf_counter()
-        frame = p2.get_frame()
-        temp = p2.frame_temperature(frame)
-        t1 = time.perf_counter()
-        ct = (t1-t0)*1000
-        i += 1
-        if i%20 == 0 :
-            print(f"min = {temp.min():1.4}, max = {temp.max():1.4}, avg = {temp.mean():0.4}, cpu secs read = {ct:1.2f}ms")
-
-        brightness = 0.01
-        contrast = 0.95
-        temp = temp.T # transpose image if needed
-        # values scaled to [0,1] range
-        cv2.imshow('p2pro temperature',(temp-temp.min())/(temp.max()-temp.min()) * contrast + brightness)
-        v = p2.frame_video_rgb(frame)
-        cv2.imshow('video',cv2.cvtColor(v.transpose(1,0,2), cv2.COLOR_RGB2BGR))
-
-        #Waits for a user input to quit the application
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    cv2.destroyAllWindows()
-
-
-if __name__ == '__main__':
-    main()
