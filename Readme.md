@@ -15,6 +15,8 @@ Live view and temperature data stream for the Infiray P2Pro thermal camera on Wi
 - a **data stream** for other applications: one JSON message per frame with unix epoch timestamp in ms,
   the global values and every point/area with its geometry and values
 - unplugging the camera: the server keeps running, reports it (UI and stream) and reconnects when the camera is back
+- the UI in Portuguese, English or Spanish (browser language by default) and a dark or light theme that follows the
+  system setting unless one is chosen; both are remembered per browser
 
 ```bash
 source .venv/bin/activate          # or your conda env, see Installation
