@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P2Pro Térmica</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>P2Pro Térmica</h1>
+  <div id="conn" class="conn off" title="conexão com o servidor"><span class="dot"></span><span id="conn-text">desconectado</span></div>
+  <div id="fps" class="muted"></div>
+</header>
+
+<div class="layout">
+  <main>
+    <div class="toolbar">
+      <div class="tools" role="radiogroup" aria-label="ferramenta">
+        <button data-tool="select" title="Selecionar (V): clique numa área e tecle Delete para apagar">Selecionar <kbd>V</kbd></button>
+        <button data-tool="point" title="Ponto (P): clique num pixel">Ponto <kbd>P</kbd></button>
+        <button data-tool="rect" title="Retângulo (R): clique e arraste">Retângulo <kbd>R</kbd></button>
+        <button data-tool="circle" title="Círculo (C): clique no centro e arraste o raio">Círculo <kbd>C</kbd></button>
+      </div>
+      <div class="view-opts">
+        <label>Paleta
+          <select id="cmap">
+            <option value="iron">ferro</option>
+            <option value="inferno">inferno</option>
+            <option value="turbo">turbo</option>
+            <option value="jet">jet</option>
+            <option value="gray">cinza</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="auto" checked> escala auto</label>
+        <label class="num">mín <input type="number" id="tmin" value="20" step="1"></label>
+        <label class="num">máx <input type="number" id="tmax" value="60" step="1"></label>
+        <label class="check"><input type="checkbox" id="show-hot" checked> mais quente</label>
+      </div>
+    </div>
+
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <form id="label-form" hidden autocomplete="off">
+        <label for="label-input">Label / id</label>
+        <input id="label-input" maxlength="64" required>
+        <div class="row">
+          <button type="submit">Criar</button>
+          <button type="button" id="label-cancel">Cancelar</button>
+        </div>
+        <div id="label-error" class="error"></div>
+      </form>
+      <div id="nocam" hidden>Aguardando imagem da câmera…</div>
+    </div>
+    <div class="under">
+      <canvas id="scale" width="512" height="14"></canvas>
+      <div class="scale-labels"><span id="scale-lo"></span><span id="scale-hi"></span></div>
+      <div id="hover" class="muted">&nbsp;</div>
+    </div>
+  </main>
+
+  <aside>
+    <section>
+      <h2>Imagem inteira</h2>
+      <dl class="stats">
+        <dt>mais quente</dt><dd><b id="g-max">–</b> <span id="g-max-pos" class="muted"></span></dd>
+        <dt>mais frio</dt><dd><span id="g-min">–</span> <span id="g-min-pos" class="muted"></span></dd>
+        <dt>média</dt><dd id="g-mean">–</dd>
+      </dl>
+    </section>
+    <section>
+      <div class="section-head">
+        <h2>Pontos de coleta</h2>
+        <button id="clear-all" class="small danger" title="apagar todos os pontos e áreas">apagar todos</button>
+      </div>
+      <p id="roi-empty" class="muted">Nenhum. Escolha Ponto, Retângulo ou Círculo e desenhe na imagem.</p>
+      <table id="roi-table" hidden>
+        <thead><tr><th>id</th><th>máx</th><th>méd</th><th>mín</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="roi-error" class="error"></div>
+    </section>
+    <section>
+      <h2>Stream de dados</h2>
+      <p class="muted">Uma mensagem JSON por frame, com <code>ts</code> em Unix epoch ms.</p>
+      <ul class="urls">
+        <li>WebSocket <code id="url-ws"></code></li>
+        <li>SSE <code id="url-sse"></code></li>
+        <li>Último frame <code id="url-latest"></code></li>
+        <li>Áreas (REST) <code id="url-rois"></code></li>
+      </ul>
+      <p class="muted">Limitar a taxa: <code>?rate=2</code> (mensagens/s).</p>
+    </section>
+  </aside>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
