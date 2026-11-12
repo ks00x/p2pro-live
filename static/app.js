@@ -73,6 +73,16 @@ if (prefs.tmax !== undefined) $('tmax').value = prefs.tmax;
 if (typeof prefs.hot === 'boolean') $('show-hot').checked = prefs.hot;
 lut = buildLut(CMAPS[$('cmap').value]);
 
+// theme: 'system' follows prefers-color-scheme (CSS), 'dark'/'light' set data-theme (also set in <head>)
+const savedTheme = (() => { try { return localStorage.getItem('p2pro-theme'); } catch { return null; } })();
+$('theme').value = savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'system';
+$('theme').addEventListener('change', () => {
+  const th = $('theme').value;
+  if (th === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = th;
+  try { localStorage.setItem('p2pro-theme', th); } catch { /* storage unavailable */ }
+});
+
 function syncScaleInputs() { $('tmin').disabled = $('tmax').disabled = $('auto').checked; }
 syncScaleInputs();
 $('cmap').addEventListener('change', () => { lut = buildLut(CMAPS[$('cmap').value]); drawScale(); state.dirty = true; savePrefs(); });

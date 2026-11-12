@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>P2Pro Térmica</title>
+<script>
+  // theme before the first paint (no flash): 'dark' | 'light', none = follow the system
+  try { const th = localStorage.getItem('p2pro-theme'); if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th; } catch {}
+</script>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,6 +15,15 @@
   <h1>P2Pro Térmica</h1>
   <div id="conn" class="conn off" title="conexão com o servidor"><span class="dot"></span><span id="conn-text">desconectado</span></div>
   <div id="fps" class="muted"></div>
+  <div class="prefs">
+    <label>Tema
+      <select id="theme">
+        <option value="system">sistema</option>
+        <option value="dark">escuro</option>
+        <option value="light">claro</option>
+      </select>
+    </label>
+  </div>
 </header>
 
 <div class="layout">
