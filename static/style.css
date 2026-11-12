@@ -58,7 +58,8 @@ input:disabled { opacity: .5; }
 #stage { position: relative; width: 100%; background: #000; border-radius: 6px; overflow: hidden; touch-action: none; }
 #view { display: block; width: 100%; height: auto; cursor: crosshair; }
 #view.select { cursor: default; }
-#nocam { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+#nocam { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+#nocam span { background: rgba(0,0,0,.75); color: #f5b942; padding: 8px 14px; border-radius: 6px; font-weight: 600; }
 #nocam[hidden] { display: none; }
 
 #label-form {
@@ -85,7 +86,7 @@ aside section { background: var(--panel); border: 1px solid var(--line); border-
 
 #roi-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 #roi-table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 2px 4px; }
-#roi-table td { padding: 4px; border-top: 1px solid var(--line); }
+#roi-table td { padding: 4px; border-top: 1px solid var(--line); white-space: nowrap; }
 #roi-table td.id { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #roi-table td .kind { color: var(--muted); font-size: 11px; margin-right: 4px; }
 #roi-table tr.selected td { background: rgba(63,182,255,.15); }
@@ -93,3 +94,12 @@ aside section { background: var(--panel); border: 1px solid var(--line); border-
 #roi-table button { padding: 0 7px; line-height: 1.5; }
 .urls { margin: 0; padding-left: 18px; }
 .urls li { margin-bottom: 4px; }
+
+#roi-table td.acts { white-space: nowrap; text-align: right; }
+#roi-table td.acts button { margin-left: 3px; }
+#roi-table button.lock svg { width: 13px; height: 13px; vertical-align: -2px; }
+#roi-table button.lock.on { color: #f5b942; border-color: #6b5520; }
+#roi-table button:disabled { opacity: .35; cursor: not-allowed; }
+#roi-table tr.locked td.id { color: #f5b942; }
+.hint { font-size: 12px; margin: 8px 0 0; }
+#notice { min-height: 1.3em; margin-top: 2px; }

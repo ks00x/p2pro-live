@@ -17,7 +17,7 @@
   <main>
     <div class="toolbar">
       <div class="tools" role="radiogroup" aria-label="ferramenta">
-        <button data-tool="select" title="Selecionar (V): clique numa área e tecle Delete para apagar">Selecionar <kbd>V</kbd></button>
+        <button data-tool="select" title="Selecionar (V): clique para selecionar, arraste para mover, use as alças para redimensionar, duplo clique para renomear">Selecionar <kbd>V</kbd></button>
         <button data-tool="point" title="Ponto (P): clique num pixel">Ponto <kbd>P</kbd></button>
         <button data-tool="rect" title="Retângulo (R): clique e arraste">Retângulo <kbd>R</kbd></button>
         <button data-tool="circle" title="Círculo (C): clique no centro e arraste o raio">Círculo <kbd>C</kbd></button>
@@ -45,17 +45,18 @@
         <label for="label-input">Label / id</label>
         <input id="label-input" maxlength="64" required>
         <div class="row">
-          <button type="submit">Criar</button>
+          <button type="submit" id="label-submit">Criar</button>
           <button type="button" id="label-cancel">Cancelar</button>
         </div>
         <div id="label-error" class="error"></div>
       </form>
-      <div id="nocam" hidden>Aguardando imagem da câmera…</div>
+      <div id="nocam" hidden><span id="nocam-text">Aguardando imagem da câmera…</span></div>
     </div>
     <div class="under">
       <canvas id="scale" width="512" height="14"></canvas>
       <div class="scale-labels"><span id="scale-lo"></span><span id="scale-hi"></span></div>
       <div id="hover" class="muted">&nbsp;</div>
+      <div id="notice" class="error" role="status"></div>
     </div>
   </main>
 
@@ -75,9 +76,11 @@
       </div>
       <p id="roi-empty" class="muted">Nenhum. Escolha Ponto, Retângulo ou Círculo e desenhe na imagem.</p>
       <table id="roi-table" hidden>
-        <thead><tr><th>id</th><th>máx</th><th>méd</th><th>mín</th><th></th></tr></thead>
+        <thead><tr><th>id</th><th>máx</th><th>méd</th><th>mín</th><th class="actions"></th></tr></thead>
         <tbody></tbody>
       </table>
+      <p class="muted hint">Cadeado fechado: o ponto/área não pode ser movido, editado nem apagado.
+        Clique no cadeado (na lista ou na imagem) para travar/destravar.</p>
       <div id="roi-error" class="error"></div>
     </section>
     <section>
