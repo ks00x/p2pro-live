@@ -6,3 +6,6 @@ matplotlib
 opencv-python 
 pyusb  
 ffmpeg-python
+starlette>=1.0
+uvicorn
+websockets>=13
