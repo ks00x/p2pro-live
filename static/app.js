@@ -30,7 +30,7 @@ const state = {
   selected: null,
   hover: null,
   labelHits: [],      // lock icons and labels drawn on the canvas, for clicks
-  camera: { connected: false, error: 'aguardando servidor' },
+  camera: { connected: false, error: null },
   frames: 0, fpsT: performance.now(),
 };
 
@@ -73,6 +73,21 @@ if (prefs.tmax !== undefined) $('tmax').value = prefs.tmax;
 if (typeof prefs.hot === 'boolean') $('show-hot').checked = prefs.hot;
 lut = buildLut(CMAPS[$('cmap').value]);
 
+// language: saved choice, else the browser language (pt, es, else en)
+const savedLang = (() => { try { return localStorage.getItem('p2pro-lang'); } catch { return null; } })();
+$('lang').value = I18N[savedLang] ? savedLang : detectLang();
+$('lang').addEventListener('change', () => {
+  try { localStorage.setItem('p2pro-lang', $('lang').value); } catch { /* storage unavailable */ }
+  applyLang($('lang').value);
+});
+document.addEventListener('langchange', () => {
+  $('roi-table').tBodies[0].replaceChildren();  // rows are rebuilt with the new texts
+  if (state.form) $('label-submit').textContent = t(state.form.mode === 'create' ? 'form.create' : 'form.rename');
+  showState();
+  updateTable(true);
+  state.dirty = true;
+});
+
 // theme: 'system' follows prefers-color-scheme (CSS), 'dark'/'light' set data-theme (also set in <head>)
 const savedTheme = (() => { try { return localStorage.getItem('p2pro-theme'); } catch { return null; } })();
 $('theme').value = savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'system';
@@ -101,13 +116,13 @@ $('url-rois').textContent = `${location.origin}/api/rois`;
 let serverUp = false;
 function showState() {
   const cam = state.camera;
-  let cls = 'on', text = 'conectado', overlay = null;
-  if (!serverUp) { cls = 'off'; text = 'servidor desconectado, reconectando…'; overlay = 'Servidor desconectado, reconectando…'; }
-  else if (!cam.connected) { cls = 'warn'; text = 'câmera desconectada'; overlay = 'Câmera desconectada, reconectando…'; }
-  else if (!state.raw) overlay = 'Aguardando imagem da câmera…';
+  let cls = 'on', text = t('conn.connected'), overlay = null;
+  if (!serverUp) { cls = 'off'; text = t('conn.server_down'); overlay = t('overlay.server_down'); }
+  else if (!cam.connected) { cls = 'warn'; text = t('conn.camera_down'); overlay = t('overlay.camera_down'); }
+  else if (!state.raw) overlay = t('overlay.waiting');
   $('conn').className = `conn ${cls}`;
   $('conn-text').textContent = text;
-  $('conn').title = cam.error || '';
+  $('conn').title = cam.error || t('conn.title');
   $('nocam').hidden = !overlay;
   if (overlay) { $('nocam-text').textContent = overlay; $('nocam-text').title = cam.error || ''; }
 }
@@ -172,13 +187,14 @@ async function api(method, path, body) {
   }
 }
 const roiPath = (id) => `/api/rois/${encodeURIComponent(id)}`;
+const errText = (r, id) => ([404, 409, 423].includes(r.status) ? t(`err.${r.status}`, { id }) : r.error || `HTTP ${r.status}`);
 // the server confirms a change before the next frames carry it: keep showing the new geometry for 2 more frames
 const confirmFrame = () => (state.msg ? state.msg.frame + 2 : 0);
 
 async function patchGeometry(id, geom) {
   state.override = { id, geom, untilFrame: null };
   const r = await api('PATCH', roiPath(id), geom);
-  if (!r.ok) { state.override = null; notice(`não foi possível alterar ${id}: ${r.error}`); }
+  if (!r.ok) { state.override = null; notice(t('n.change_failed', { id, error: errText(r, id) })); }
   else state.override.untilFrame = confirmFrame();
   state.dirty = true;
 }
@@ -187,23 +203,23 @@ async function toggleLock(id) {
   const roi = findRoi(id);
   if (!roi) return;
   const r = await api('PATCH', roiPath(id), { locked: !roi.locked });
-  if (!r.ok) notice(`não foi possível ${roi.locked ? 'destravar' : 'travar'} ${id}: ${r.error}`);
+  if (!r.ok) notice(t(roi.locked ? 'n.unlock_failed' : 'n.lock_failed', { id, error: errText(r, id) }));
 }
 
 async function deleteRoi(id) {
   const roi = findRoi(id);
-  if (roi && roi.locked) { notice(`${id} está travado, destrave para apagar`); return; }
+  if (roi && roi.locked) { notice(t('n.locked_delete', { id })); return; }
   const r = await api('DELETE', roiPath(id));
-  if (!r.ok && r.status !== 404) notice(`erro ao apagar ${id}: ${r.error}`);
+  if (!r.ok && r.status !== 404) notice(t('n.delete_failed', { id, error: errText(r, id) }));
   if (state.selected === id) state.selected = null;
 }
 
 $('clear-all').addEventListener('click', async () => {
   const unlocked = rois().filter((r) => !r.locked).length;
-  if (unlocked === 0) { notice('nada para apagar (os travados são mantidos)'); return; }
-  if (!confirm(`Apagar ${unlocked} ponto(s)/área(s) de coleta? Os travados são mantidos.`)) return;
+  if (unlocked === 0) { notice(t('n.nothing_to_delete')); return; }
+  if (!confirm(t('confirm.clear', { n: unlocked }))) return;
   const r = await api('DELETE', '/api/rois');
-  if (r.ok && r.data.kept_locked) notice(`${r.data.kept_locked} travado(s) mantido(s)`);
+  if (r.ok && r.data.kept_locked) notice(t('n.kept', { n: r.data.kept_locked }));
   state.selected = null;
 });
 
@@ -383,7 +399,7 @@ function openForm(form, at) {
   el.style.left = `${clamp(at.sx + 12, 4, stage.width - el.offsetWidth - 4)}px`;
   el.style.top = `${clamp(at.sy + 12, 4, stage.height - el.offsetHeight - 4)}px`;
   $('label-error').textContent = '';
-  $('label-submit').textContent = form.mode === 'create' ? 'Criar' : 'Renomear';
+  $('label-submit').textContent = t(form.mode === 'create' ? 'form.create' : 'form.rename');
   const input = $('label-input');
   input.value = form.mode === 'create' ? nextId(form.shape.type) : form.id;
   input.focus();
@@ -398,7 +414,7 @@ function closeForm() {
 function rename(id, at) {
   const roi = findRoi(id);
   if (!roi) return;
-  if (roi.locked) { notice(`${id} está travado, destrave para renomear`); return; }
+  if (roi.locked) { notice(t('n.locked_rename', { id })); return; }
   if (!at) {  // from the list: next to the object
     const s = scale(), [hx, hy] = roi.type === 'circle' ? [roi.cx, roi.cy] : [roi.x, roi.y];
     at = { sx: hx * s, sy: hy * s };
@@ -416,7 +432,7 @@ $('label-form').addEventListener('submit', async (ev) => {
   if (f.mode === 'create') r = await api('POST', '/api/rois', { id, ...f.shape });
   else if (id === f.id) { closeForm(); return; }
   else r = await api('PATCH', roiPath(f.id), { id });
-  if (!r.ok) { $('label-error').textContent = r.error || `erro ${r.status}`; return; }
+  if (!r.ok) { $('label-error').textContent = errText(r, f.mode === 'create' ? id : f.id); return; }
   closeForm();
   select(r.data.id);
 });
@@ -433,7 +449,7 @@ document.addEventListener('keydown', (ev) => {
   else if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel) { ev.preventDefault(); deleteRoi(sel.id); }
   else if (ev.key.startsWith('Arrow') && sel) {
     ev.preventDefault();
-    if (sel.locked) { notice(`${sel.id} está travado`); return; }
+    if (sel.locked) { notice(t('n.locked', { id: sel.id })); return; }
     const step = ev.shiftKey ? 10 : 1, d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
     const e = { kind: 'move', start: { x: 0, y: 0 }, orig: sel };
     patchGeometry(sel.id, editGeometry(e, { x: d[0], y: d[1] }));
@@ -470,17 +486,21 @@ function updateTable(force) {
   $('roi-table').hidden = list.length === 0;
   const tbody = $('roi-table').tBodies[0];
   const rows = new Map([...tbody.rows].map((tr) => [tr.dataset.id, tr]));
-  const kinds = { point: 'pt', rect: 'ret', circle: 'circ' };
   list.forEach((r, i) => {
     let tr = rows.get(r.id);
     if (!tr) {
       tr = tbody.insertRow();
       tr.dataset.id = r.id;
       tr.innerHTML = '<td class="id"></td><td class="max"></td><td class="mean"></td><td class="min"></td>' +
-        '<td class="acts"><button class="small lock"></button><button class="small edit" title="renomear">✎</button>' +
-        '<button class="small danger del" title="apagar">×</button></td>';
+        '<td class="acts"><button class="small lock"></button><button class="small edit">✎</button>' +
+        '<button class="small danger del">×</button></td>';
+      tr.querySelector('.edit').title = t('btn.rename');
+      tr.querySelector('.del').title = t('btn.delete');
       const td = tr.querySelector('.id');
-      td.innerHTML = `<span class="kind">${kinds[r.type]}</span>`;
+      const kind = document.createElement('span');
+      kind.className = 'kind';
+      kind.textContent = t(`kind.${r.type}`);
+      td.append(kind);
       td.append(document.createTextNode(r.id));
       td.title = r.id;
       tr.querySelector('.lock').addEventListener('click', (ev) => { ev.stopPropagation(); toggleLock(r.id); });
@@ -501,7 +521,7 @@ function updateTable(force) {
       lock.dataset.locked = String(r.locked);
       lock.innerHTML = r.locked ? ICON_LOCKED : ICON_UNLOCKED;
       lock.classList.toggle('on', r.locked);
-      lock.title = r.locked ? 'travado: clique para destravar' : 'destravado: clique para travar';
+      lock.title = t(r.locked ? 'lock.locked' : 'lock.unlocked');
       lock.setAttribute('aria-pressed', String(r.locked));
       tr.querySelector('.edit').disabled = r.locked;
       tr.querySelector('.del').disabled = r.locked;
@@ -653,7 +673,7 @@ function render() {
         ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12);
         ctx.stroke();
       }
-      label(`máx ${m.global.max.toFixed(1)}°`, x + 10, y + 8, COLOR.hot);
+      label(`${t('canvas.max')} ${m.global.max.toFixed(1)}°`, x + 10, y + 8, COLOR.hot);
     }
   }
   const preview = state.drag ? shapeFromDrag(state.tool, state.drag.start, state.drag.cur)
@@ -674,6 +694,7 @@ setInterval(() => {
   state.frames = 0; state.fpsT = now;
 }, 1000);
 
+applyLang($('lang').value);
 resize();
 drawScale();
 showState();
