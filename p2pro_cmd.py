@@ -1,3 +1,12 @@
+"""
+USB vendor commands for the Infiray P2Pro (reverse-engineered protocol).
+
+Taken from P2Pro-Viewer by LeoDJ, https://github.com/LeoDJ/P2Pro-Viewer
+(P2Pro/P2Pro_cmd.py), MIT License, Copyright (c) 2023 LeoDJ.
+
+Note: on Windows the video stream must be opened before sending commands,
+otherwise the libusb call may hang (see P2Pro-Viewer README).
+"""
 import enum
 import struct
 import time
@@ -252,6 +261,13 @@ class P2Pro:
     def get_device_info(self, dev_info: DeviceInfoType):
         res = self._standard_cmd_read(CmdCode.get_device_info, dev_info, DeviceInfoType_len[dev_info])
         return res
+
+    def get_device_info_str(self, dev_info: DeviceInfoType) -> str:
+        'device info as text if it is printable ASCII (NUL padding removed), otherwise as hex string'
+        res = self.get_device_info(dev_info).rstrip(b'\x00')
+        if len(res) > 0 and all(32 <= b < 127 for b in res):
+            return res.decode('ascii')
+        return res.hex()
     
 
 if __name__ == '__main__':
