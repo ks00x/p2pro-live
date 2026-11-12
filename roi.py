@@ -8,6 +8,7 @@ ROI definitions (JSON):
   point : {"id": "p1", "type": "point",  "x": 10, "y": 20}                    -> the single pixel (x, y)
   rect  : {"id": "a1", "type": "rect",   "x": 10, "y": 20, "w": 30, "h": 15}  -> pixels whose center lies inside
   circle: {"id": "c1", "type": "circle", "cx": 50.5, "cy": 60.5, "r": 8}      -> pixels whose center lies inside
+optional: "locked": true -> the ROI can not be moved, resized, renamed or deleted until it is unlocked
 '''
 import json
 import math
@@ -22,7 +23,19 @@ GEOMETRY_KEYS = {'point': ('x', 'y'), 'rect': ('x', 'y', 'w', 'h'), 'circle': ('
 
 
 class RoiError(ValueError):
-    pass
+    'invalid ROI definition or change (HTTP 400)'
+
+
+class RoiNotFound(RoiError):
+    'no ROI with this id (HTTP 404)'
+
+
+class RoiConflict(RoiError):
+    'the id is already used (HTTP 409)'
+
+
+class RoiLocked(RoiError):
+    'the ROI is locked (HTTP 423)'
 
 
 def _r2(v):
@@ -48,10 +61,11 @@ def validate_id(roi_id):
 class Roi:
     'one collection region. Immutable after creation, the pixel indices are precomputed'
 
-    def __init__(self, roi_id, kind, geom, shape):
+    def __init__(self, roi_id, kind, geom, shape, locked=False):
         self.id = roi_id
         self.type = kind
         self.geom = geom  # dict with the GEOMETRY_KEYS of the type
+        self.locked = locked
         h, w = shape
         if kind == 'point':
             x, y = geom['x'], geom['y']
@@ -96,10 +110,13 @@ class Roi:
             raise RoiError('rect: w and h must be > 0')
         if kind == 'circle' and geom['r'] <= 0:
             raise RoiError('circle: r must be > 0')
-        return cls(roi_id, kind, geom, shape)
+        locked = d.get('locked', False)
+        if not isinstance(locked, bool):
+            raise RoiError('"locked" must be true or false')
+        return cls(roi_id, kind, geom, shape, locked)
 
     def to_dict(self):
-        return {'id': self.id, 'type': self.type, **self.geom}
+        return {'id': self.id, 'type': self.type, **self.geom, 'locked': self.locked}
 
     def stats(self, temp):
         'definition + values of this ROI for the temperature image temp (H x W, Celsius)'
@@ -181,33 +198,65 @@ class RoiSet:
         roi = Roi.from_dict(d, self.shape)
         with self._lock:
             if roi.id in self._rois:
-                raise RoiError(f'id "{roi.id}" already exists')
+                raise RoiConflict(f'id "{roi.id}" already exists')
             self._rois[roi.id] = roi
             self._save()
         return roi.to_dict()
 
-    def remove(self, roi_id):
-        'removes the ROI (and with it its id). Returns False if it does not exist'
+    def update(self, roi_id, changes):
+        '''changes an existing ROI: new id, geometry (all or some of its keys, e.g. only x and y to move it)
+        and/or "locked". A locked ROI only accepts changes together with "locked": false.
+        Returns the new definition.'''
+        if not isinstance(changes, dict) or not changes:
+            raise RoiError('changes must be a non empty JSON object')
         with self._lock:
-            if roi_id not in self._rois:
-                return False
+            cur = self._rois.get(roi_id)
+            if cur is None:
+                raise RoiNotFound(f'id "{roi_id}" not found')
+            allowed = {'id', 'locked', *GEOMETRY_KEYS[cur.type]}
+            unknown = set(changes) - allowed
+            if unknown:
+                raise RoiError(f'can not change {sorted(unknown)} of a {cur.type} (allowed: {sorted(allowed)})')
+            edits = set(changes) - {'locked'}
+            if edits and cur.locked and changes.get('locked') is not False:
+                raise RoiLocked(f'"{roi_id}" is locked, unlock it first')
+            new = Roi.from_dict({**cur.to_dict(), **changes}, self.shape)
+            if new.id != roi_id and new.id in self._rois:
+                raise RoiConflict(f'id "{new.id}" already exists')
+            # replace in place, the order of the ROIs is kept
+            self._rois = {(new.id if k == roi_id else k): (new if k == roi_id else v) for k, v in self._rois.items()}
+            self._save()
+        return new.to_dict()
+
+    def remove(self, roi_id):
+        'removes the ROI (and with it its id). Raises RoiNotFound or RoiLocked'
+        with self._lock:
+            roi = self._rois.get(roi_id)
+            if roi is None:
+                raise RoiNotFound(f'id "{roi_id}" not found')
+            if roi.locked:
+                raise RoiLocked(f'"{roi_id}" is locked, unlock it first')
             del self._rois[roi_id]
             self._save()
-            return True
 
     def clear(self):
+        'removes all unlocked ROIs. Returns (deleted, kept locked)'
         with self._lock:
-            n = len(self._rois)
-            self._rois.clear()
+            keep = {k: v for k, v in self._rois.items() if v.locked}
+            deleted = len(self._rois) - len(keep)
+            self._rois = keep
             self._save()
-            return n
+            return deleted, len(keep)
 
 
-def build_message(temp, rois, ts_ms, frame_no):
-    'the data stream message of one frame'
+def build_message(temp, rois, ts_ms, frame_no, ts_source='host'):
+    '''the data stream message of one frame
+    ts_source: "driver" = capture time of the frame from the camera driver, "host" = time the frame was read'''
     h, w = temp.shape
     return {
+        'type': 'frame',
         'ts': int(ts_ms),
+        'ts_source': ts_source,
         'frame': int(frame_no),
         'unit': 'C',
         'width': int(w),

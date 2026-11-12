@@ -8,7 +8,7 @@ Data stream (one JSON message per camera frame, see README / roi.build_message):
   WebSocket  ws://<host>:<port>/ws/data[?rate=<max msgs/s>]
   SSE        http://<host>:<port>/api/stream[?rate=<max msgs/s>]
   polling    http://<host>:<port>/api/latest
-ROIs (REST): GET/POST/DELETE /api/rois, DELETE /api/rois/{id}
+ROIs (REST): GET/POST/DELETE /api/rois, PATCH/DELETE /api/rois/{id}
 Full temperature image: GET /api/frame
 Live view (browser): ws://<host>:<port>/ws/live, per frame one JSON text message followed by one binary message
   binary = header '<4sHHId' (b'P2PR', width, height, frame, ts_ms) + width*height uint16 little endian raw values,
@@ -34,7 +34,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from p2pro import p2pro, P2PRO_ROWS, P2PRO_COLS
-from roi import RoiSet, RoiError, build_message
+from roi import RoiSet, RoiError, RoiNotFound, RoiConflict, RoiLocked, build_message
 
 log = logging.getLogger('thermal_server')
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -149,6 +149,16 @@ def parse_rate(params):
     return rate
 
 
+def roi_error_status(ex):
+    if isinstance(ex, RoiNotFound):
+        return 404
+    if isinstance(ex, RoiConflict):
+        return 409
+    if isinstance(ex, RoiLocked):
+        return 423
+    return 400
+
+
 def create_app(cam_id=None, rois_path=None):
     hub = Hub()
     rois = RoiSet(SHAPE, rois_path)
@@ -187,27 +197,35 @@ def create_app(cam_id=None, rois_path=None):
         return JSONResponse({k: msg[k] for k in ('ts', 'frame', 'unit', 'width', 'height')} |
                             {'temps': np.round(temp, 2).tolist()})
 
+    async def read_json(request):
+        try:
+            return await request.json()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            raise RoiError('body must be JSON')
+
     async def api_rois(request: Request):
         if request.method == 'GET':
             return JSONResponse(rois.definitions())
         if request.method == 'DELETE':
-            return JSONResponse({'deleted': rois.clear()})
+            deleted, kept = rois.clear()
+            return JSONResponse({'deleted': deleted, 'kept_locked': kept})
         try:
-            body = await request.json()
-        except json.JSONDecodeError:
-            return error('body must be JSON')
-        try:
-            if isinstance(body, list):  # several at once, all or nothing is not guaranteed
+            body = await read_json(request)
+            if isinstance(body, list):  # several at once, stops at the first error
                 return JSONResponse([rois.add(d) for d in body], status_code=201)
             return JSONResponse(rois.add(body), status_code=201)
         except RoiError as ex:
-            return error(str(ex), 409 if 'already exists' in str(ex) else 400)
+            return error(str(ex), roi_error_status(ex))
 
-    async def api_roi_delete(request: Request):
+    async def api_roi(request: Request):
         roi_id = request.path_params['roi_id']
-        if not rois.remove(roi_id):
-            return error(f'id "{roi_id}" not found', 404)
-        return Response(status_code=204)
+        try:
+            if request.method == 'DELETE':
+                rois.remove(roi_id)
+                return Response(status_code=204)
+            return JSONResponse(rois.update(roi_id, await read_json(request)))
+        except RoiError as ex:
+            return error(str(ex), roi_error_status(ex))
 
     async def api_stream(request: Request):
         try:
@@ -278,7 +296,7 @@ def create_app(cam_id=None, rois_path=None):
         Route('/api/frame', api_frame),
         Route('/api/stream', api_stream),
         Route('/api/rois', api_rois, methods=['GET', 'POST', 'DELETE']),
-        Route('/api/rois/{roi_id:path}', api_roi_delete, methods=['DELETE']),
+        Route('/api/rois/{roi_id:path}', api_roi, methods=['PATCH', 'DELETE']),
         WebSocketRoute('/ws/live', ws_live),
         WebSocketRoute('/ws/data', ws_data),
         Mount('/static', StaticFiles(directory=STATIC), name='static'),
