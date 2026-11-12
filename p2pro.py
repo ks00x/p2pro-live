@@ -77,7 +77,7 @@ class p2pro:
         if cam_id is None:
             devices = find_p2pro_devices()
             if len(devices) == 0:
-                raise RuntimeError('No P2Pro camera found (USB id 0bda:5830). Pass the camera id explicitly.')
+                raise RuntimeError('no P2Pro camera found (USB id 0bda:5830)')
             cam_id = devices[0]
         if platform.system() == 'Windows':
             cam_id = int(cam_id)

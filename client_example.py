@@ -5,19 +5,23 @@ Example consumer of the P2Pro thermal server data stream.
   python client_example.py --rate 1                # at most 1 message per second
   python client_example.py --url ws://192.168.0.10:8080/ws/data --csv log.csv
 
-Every message is JSON:
+Every message is JSON. One per camera frame:
 {
-  "ts": 1731420000123,          unix epoch in ms (host time when the frame was received)
+  "type": "frame",
+  "ts": 1731420000123,          unix epoch in ms of the frame capture
+  "ts_source": "driver",        "driver" (capture time from the camera driver) or "host" (time it was read)
   "frame": 1234,                frame counter since server start
   "unit": "C", "width": 256, "height": 192,
   "global": {"min": .., "max": .., "mean": .., "max_pos": {"x": .., "y": ..}, "min_pos": {"x": .., "y": ..}},
   "rois": [
-    {"id": "P1", "type": "point", "x": 10, "y": 20, "temp": 31.25},
-    {"id": "motor", "type": "rect", "x": 90, "y": 40, "w": 20, "h": 15,
+    {"id": "P1", "type": "point", "x": 10, "y": 20, "locked": false, "temp": 31.25},
+    {"id": "motor", "type": "rect", "x": 90, "y": 40, "w": 20, "h": 15, "locked": true,
      "pixels": 300, "min": .., "max": .., "mean": .., "max_pos": {..}, "min_pos": {..}},
-    {"id": "C1", "type": "circle", "cx": 30.5, "cy": 30.5, "r": 6.2, "pixels": .., "min": .., ...}
+    {"id": "C1", "type": "circle", "cx": 30.5, "cy": 30.5, "r": 6.2, "locked": false, "pixels": .., "min": .., ...}
   ]
 }
+and when the camera is (dis)connected, also sent first after connecting:
+{"type": "status", "ts": 1731420000123, "camera_connected": false, "camera": "/dev/video4", "error": "..."}
 '''
 import argparse
 import csv
@@ -47,6 +51,10 @@ def main():
         n = 0
         for text in ws:
             msg = json.loads(text)
+            if msg['type'] == 'status':
+                state = 'connected' if msg['camera_connected'] else f"DISCONNECTED ({msg['error']})"
+                print(f"{msg['ts']} camera {msg['camera']} {state}", flush=True)
+                continue
             g = msg['global']
             rois = ', '.join(f"{r['id']}={r['temp'] if r['type'] == 'point' else r['max']:.1f}" for r in msg['rois'])
             print(f"{msg['ts']} max {g['max']:.1f}C @({g['max_pos']['x']},{g['max_pos']['y']})  {rois}", flush=True)
