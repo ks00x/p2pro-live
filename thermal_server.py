@@ -23,10 +23,12 @@ import contextlib
 import json
 import logging
 import os
+import platform
 import struct
 import threading
 import time
 
+import cv2
 import numpy as np
 import uvicorn
 from starlette.applications import Starlette
@@ -45,6 +47,7 @@ STATIC = os.path.join(HERE, 'static')
 FRAME_HEADER = struct.Struct('<4sHHId')
 SHAPE = (P2PRO_ROWS, P2PRO_COLS)
 STALL_S = 2.0          # no frame for this long -> camera reported as disconnected
+MAX_DRIVER_LAG_MS = 1000  # driver timestamps older than this are not trusted
 
 
 def dumps(msg):
@@ -156,6 +159,18 @@ class CameraWorker:
         self.last_frame_t = time.monotonic()
         return cam
 
+    @staticmethod
+    def _timestamp_ms(cam):
+        '''epoch ms of the frame. On Linux the V4L2 driver stamps every frame with CLOCK_MONOTONIC when its
+        first data arrives (~36 ms before it can be read); converted to the wall clock here.'''
+        now_ms = time.time() * 1000
+        if platform.system() == 'Linux':
+            drv = cam.cap.get(cv2.CAP_PROP_POS_MSEC)
+            lag = time.monotonic() * 1000 - drv
+            if drv > 0 and 0 <= lag < MAX_DRIVER_LAG_MS:
+                return int(round(now_ms - lag)), 'driver'
+        return int(now_ms), 'host'
+
     def run(self):
         cam = None
         frame_no = 0
@@ -175,7 +190,7 @@ class CameraWorker:
                 cam = None  # releases the device
                 self.stop_event.wait(0.5)
                 continue
-            ts_ms, ts_source = int(time.time() * 1000), 'host'  # time when the frame was received
+            ts_ms, ts_source = self._timestamp_ms(cam)
             self.last_frame_t = time.monotonic()
             self.set_connected(True, None, str(cam.cam_id))
             raw = p2pro.frame_raw(frame)
